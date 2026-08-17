@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meridian · API 监控定价</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --ink: #14171f;
+    --ink-soft: #4b5563;
+    --ink-faint: #6b7280;
+    --line: #e6e8ec;
+    --brand: #2563eb;
+    --brand-ink: #1d4ed8;
+    --brand-soft: #eef4ff;
+    --accent: #f59e0b;
+    --accent-soft: #fef3c7;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .06);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---------- 页头 ---------- */
+  header.site-header {
+    border-bottom: 1px solid var(--line);
+    background: rgba(255, 255, 255, .9);
+    backdrop-filter: saturate(180%) blur(8px);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -.01em;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .brand small {
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--ink-faint);
+    margin-left: 2px;
+  }
+
+  /* ---------- 主视觉 ---------- */
+  .hero {
+    text-align: center;
+    padding: 72px 24px 56px;
+  }
+
+  .hero h1 {
+    font-size: 46px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+    margin-bottom: 18px;
+  }
+
+  .hero .lede {
+    font-size: 19px;
+    color: var(--ink-soft);
+    max-width: 620px;
+    margin: 0 auto 32px;
+  }
+
+  /* ---------- 按钮 ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 13px 24px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    white-space: nowrap;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary {
+    background: var(--brand);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, .28);
+  }
+
+  .btn-primary:hover {
+    background: var(--brand-ink);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, .34);
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--line);
+    box-shadow: var(--shadow);
+  }
+
+  .btn-secondary:hover {
+    border-color: #cbd5e1;
+  }
+
+  .btn-lg {
+    padding: 15px 28px;
+    font-size: 16px;
+    border-radius: 11px;
+  }
+
+  .btn-block {
+    width: 100%;
+  }
+
+  /* ---------- 定价卡片 ---------- */
+  .pricing {
+    padding: 8px 0 88px;
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    align-items: stretch;
+  }
+
+  .card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 30px 28px 28px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card.featured {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px var(--brand-soft), 0 12px 32px rgba(37, 99, 235, .16);
+  }
+
+  .badge {
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--brand);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .tier-name {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .price {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .price .amount {
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1;
+  }
+
+  .price .currency {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink-soft);
+  }
+
+  .price .period {
+    font-size: 14px;
+    color: var(--ink-faint);
+  }
+
+  .features {
+    list-style: none;
+    margin-bottom: 28px;
+    flex: 1;
+  }
+
+  .features li {
+    position: relative;
+    padding-left: 26px;
+    margin-bottom: 12px;
+    font-size: 15px;
+    color: var(--ink-soft);
+  }
+
+  .features li::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 7px;
+    width: 14px;
+    height: 7px;
+    border-left: 2px solid var(--brand);
+    border-bottom: 2px solid var(--brand);
+    transform: rotate(-45deg);
+  }
+
+  /* ---------- FAQ ---------- */
+  .faq {
+    padding: 0 0 96px;
+  }
+
+  .section-title {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .faq-list {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .faq-item {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+
+  .faq-item h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .faq-item p {
+    font-size: 15px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- 页脚 ---------- */
+  footer.site-footer {
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+    padding: 32px 0;
+  }
+
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .copyright {
+    font-size: 14px;
+    color: var(--ink-faint);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+
+  .footer-links a {
+    font-size: 14px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    transition: color .12s ease;
+  }
+
+  .footer-links a:hover {
+    color: var(--brand);
+  }
+</style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <div class="brand">
+        <span class="brand-mark">M</span>
+        Meridian<small>API 监控</small>
+      </div>
+      <a href="#pricing" class="btn btn-secondary">查看定价</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="wrap">
+      <h1>让每一次 API 调用都尽在掌握</h1>
+      <p class="lede">
+        Meridian 实时监控你的 API 健康状态、延迟与错误率，在故障影响用户之前发出告警，让团队安心发布。
+      </p>
+      <a href="#pricing" class="btn btn-primary btn-lg">免费开始使用</a>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <div class="wrap">
+      <div class="pricing-grid">
+
+        <div class="card">
+          <h2 class="tier-name">Hobby</h2>
+          <div class="price">
+            <span class="currency">¥</span>
+            <span class="amount">0</span>
+            <span class="period">/ 永久免费</span>
+          </div>
+          <ul class="features">
+            <li>5 个监控端点</li>
+            <li>每分钟一次检查频率</li>
+            <li>30 天数据保留</li>
+            <li>邮件告警通知</li>
+          </ul>
+          <a href="#" class="btn btn-secondary btn-block">开始使用</a>
+        </div>
+
+        <div class="card featured">
+          <span class="badge">推荐</span>
+          <h2 class="tier-name">Team</h2>
+          <div class="price">
+            <span class="currency">¥</span>
+            <span class="amount">199</span>
+            <span class="period">/ 月</span>
+          </div>
+          <ul class="features">
+            <li>无限监控端点</li>
+            <li>每 10 秒一次检查频率</li>
+            <li>12 个月数据保留</li>
+            <li>多渠道告警与团队协作</li>
+          </ul>
+          <a href="#" class="btn btn-primary btn-block">立即订阅</a>
+        </div>
+
+        <div class="card">
+          <h2 class="tier-name">Enterprise</h2>
+          <div class="price">
+            <span class="currency">¥</span>
+            <span class="amount">按需</span>
+            <span class="period">/ 报价</span>
+          </div>
+          <ul class="features">
+            <li>专属基础设施部署</li>
+            <li>自定义 SLA 与合规支持</li>
+            <li>无限数据保留</li>
+            <li>专属客户成功经理</li>
+          </ul>
+          <a href="#" class="btn btn-secondary btn-block">联系销售</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="faq" id="faq">
+    <div class="wrap">
+      <h2 class="section-title">常见问题</h2>
+      <div class="faq-list">
+        <div class="faq-item">
+          <h3>我可以随时更换或取消套餐吗？</h3>
+          <p>可以。你随时可以在控制台升级、降级或取消订阅，费用按实际使用天数结算，无需任何违约金。</p>
+        </div>
+        <div class="faq-item">
+          <h3>免费版适合个人项目吗？</h3>
+          <p>完全适合。Hobby 版为个人开发者和小型项目提供 5 个端点与分钟级检查，永久免费且无需绑定信用卡。</p>
+        </div>
+        <div class="faq-item">
+          <h3>Enterprise 版如何获取报价？</h3>
+          <p>点击「联系销售」提交需求，我们的团队会在一个工作日内与你联系，根据规模与部署方式提供定制方案。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div class="copyright">© 2025 Meridian. 保留所有权利。</div>
+      <nav class="footer-links">
+        <a href="#">隐私政策</a>
+        <a href="#">服务条款</a>
+        <a href="#">联系我们</a>
+      </nav>
+    </div>
+  </footer>
+
+</body>
+</html>
