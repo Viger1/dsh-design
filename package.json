@@ -1,6 +1,6 @@
 {
   "name": "dsh-design",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Design taste your agent can be held to — a design-system skill that constrains the choices, plus design_audit, which measures the rendered page (type scale, WCAG contrast, spacing grid, palette drift) instead of trusting it looked right.",
   "type": "module",
   "main": "lib/index.js",
