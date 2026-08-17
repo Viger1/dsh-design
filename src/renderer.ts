@@ -7,6 +7,7 @@
 
 import type { Browser, BrowserContext } from 'playwright-core'
 import { chromium } from 'playwright-core'
+import { withCancellation, type CancellationScope } from './cancellation.js'
 
 /** Launch settings fixed per renderer by plugin config. */
 export interface RendererOptions {
@@ -60,16 +61,17 @@ export class Renderer {
    */
   async measure(request: MeasureRequest): Promise<MeasureResult> {
     if (this.disposed) throw new Error('renderer is disposed (plugin unloading)')
-    if (request.signal.aborted) throw new Error('cancelled before the audit started')
-    // Registered before the launch, not after: an abort fires once, so a
-    // listener attached later never runs and the browser would keep loading
-    // the page for the full navigation timeout. `context` is filled in below;
-    // the handler closes whatever exists when the abort arrives.
+    return withCancellation(request.signal, scope => this.load(request, scope))
+  }
+
+  /**
+   * Load and measure one page under an installed cancellation scope.
+   * @param request - what to load and evaluate.
+   * @param scope - cancellation scope registering the context to close.
+   * @returns the final URL and the collector's value.
+   */
+  private async load(request: MeasureRequest, scope: CancellationScope): Promise<MeasureResult> {
     let context: BrowserContext | undefined
-    const closeOnAbort = (): void => {
-      void context?.close().catch(() => { /* already closing; the abort still wins */ })
-    }
-    request.signal.addEventListener('abort', closeOnAbort, { once: true })
     try {
       const browser = await this.ensureBrowser()
       this.throwIfCancelled(request.signal)
@@ -79,6 +81,7 @@ export class Renderer {
           height: this.options.viewportHeight,
         },
       })
+      scope.closeOnAbort(context)
       this.throwIfCancelled(request.signal)
       const page = await context.newPage()
       this.throwIfCancelled(request.signal)
@@ -105,7 +108,6 @@ export class Renderer {
     } catch (err) {
       throw request.signal.aborted ? new Error('cancelled while loading the page') : err
     } finally {
-      request.signal.removeEventListener('abort', closeOnAbort)
       await context?.close().catch(() => { /* already closed by the abort path */ })
     }
   }
