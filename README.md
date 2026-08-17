@@ -60,7 +60,7 @@ Takes a URL (localhost always allowed) or a local HTML file. Pass `viewportWidth
     maxTypeSizes: 6         # distinct font sizes before the hierarchy is unplanned
     maxPaletteColors: 8     # distinct non-neutral colors before it is drift
     neutralSaturation: 0.15 # saturation below which a color counts as neutral
-    minTapTargetPx: 44
+    minTapTargetPx: 24     # WCAG 2.2 AA; raise to 44 for a touch-first product
     maxCharsPerLine: 75
     allowedHosts: []        # extra hostnames the audit may load
     registerSkill: true
@@ -74,6 +74,15 @@ Every threshold is a deployment choice, because a dense operator console and a m
 - **Unmodelled color syntax is skipped, not guessed.** A page using `oklch()` loses those elements from the contrast count rather than getting a fabricated ratio.
 - **Contrast resolves a real backdrop.** The collector walks ancestors to the first opaque background, because a ratio against `rgba(0,0,0,0)` is meaningless.
 - **Neutrals are excluded from the palette count.** A grey ramp is structure; saturated colors are choices, and only choices should be rationed.
+
+### Calibrated against a real application
+
+Auditing dsh's own Web UI — a professionally designed product — was the check that mattered, because every earlier fixture had been written to trigger the rules. Two thresholds passed cleanly on it (4 type sizes against a limit of 6, five non-neutral colors against eight), which is the evidence that those limits are not arbitrary. Two rules were wrong and were fixed:
+
+- **Hairlines are not rhythm.** 1px and 2px values are borders, focus rings, and optical nudges; holding them to the spacing scale was noise. Values below the base are now exempt, and when every off-grid value fits a finer scale the report says so and names it rather than asking a consistent project to abandon its own system.
+- **44px is the touch guideline, not the AA bar.** Flagging 28x28 desktop icon buttons applied a mobile standard to a mouse interface. The default is now WCAG 2.2 AA (2.5.8, 24px); touch-first deployments raise it.
+
+On that same UI the report went from three violations to two, and the one that remained — two muted labels at 3.55:1 — is a real accessibility finding.
 
 ### What the plugin's own review changed
 

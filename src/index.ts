@@ -50,7 +50,10 @@ export interface Config {
   maxPaletteColors: number
   /** HSL saturation below which a color counts as neutral. */
   neutralSaturation: number
-  /** Interactive elements smaller than this in either axis are flagged. */
+  /**
+   * Interactive elements smaller than this in either axis are flagged. The
+   * default is WCAG 2.2 AA (24px); raise it to 44 for a touch-first product.
+   */
   minTapTargetPx: number
   /** Running text wider than this many characters per line is flagged. */
   maxCharsPerLine: number
@@ -71,7 +74,7 @@ export const Config: z<Config> = z.object({
   maxTypeSizes: z.number().default(6),
   maxPaletteColors: z.number().default(8),
   neutralSaturation: z.number().default(0.15),
-  minTapTargetPx: z.number().default(44),
+  minTapTargetPx: z.number().default(24),
   maxCharsPerLine: z.number().default(75),
   allowedHosts: z.array(z.string()).default([]),
   registerSkill: z.boolean().default(true),

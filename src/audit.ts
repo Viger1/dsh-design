@@ -71,7 +71,11 @@ export interface AuditOptions {
   maxPaletteColors: number
   /** HSL saturation below which a color counts as neutral. */
   neutralSaturation: number
-  /** Interactive elements smaller than this in either axis are hard to hit. */
+  /**
+   * Interactive elements smaller than this in either axis are flagged.
+   * The default is WCAG 2.2 AA (2.5.8 Target Size Minimum, 24px); raise it to
+   * 44 for a touch-first product, which is the AAA / platform touch guidance.
+   */
   minTapTargetPx: number
   /** Running text wider than this many characters per line is tiring to read. */
   maxCharsPerLine: number
@@ -83,7 +87,7 @@ export const DEFAULT_OPTIONS: AuditOptions = {
   maxTypeSizes: 6,
   maxPaletteColors: 8,
   neutralSaturation: 0.15,
-  minTapTargetPx: 44,
+  minTapTargetPx: 24,
   maxCharsPerLine: 75,
 }
 
@@ -179,11 +183,13 @@ export function auditPage(page: PageSample, options: AuditOptions): AuditResult 
   }
 
   // Spacing grid: arbitrary gaps are the clearest tell of unconsidered layout.
+  // Values below the base are hairlines — borders, focus rings, optical
+  // nudges — not layout rhythm, so holding them to the scale is noise.
   const offGrid = new Map<number, string[]>()
   for (const element of page.elements) {
     for (const value of element.spacingPx) {
       const rounded = round(value)
-      if (rounded === 0 || rounded % options.spacingBasePx === 0) continue
+      if (rounded === 0 || rounded < options.spacingBasePx || rounded % options.spacingBasePx === 0) continue
       const seen = offGrid.get(rounded) ?? []
       if (seen.length < 3) seen.push(element.selector)
       offGrid.set(rounded, seen)
@@ -191,12 +197,21 @@ export function auditPage(page: PageSample, options: AuditOptions): AuditResult 
   }
   if (offGrid.size > 0) {
     const values = [...offGrid.keys()].sort((a, b) => a - b)
+    // A project on a finer scale reads as "everything is off-grid"; say so
+    // instead of asking it to abandon a scale it is following consistently.
+    const finer = [options.spacingBasePx / 2, options.spacingBasePx / 4]
+      // A 1px "scale" is the absence of one, so it is never a useful suggestion.
+      .find(base => base >= 2 && Number.isInteger(base) && values.every(value => value % base === 0))
     violations.push({
       rule: 'spacing-grid',
       severity: 'medium',
       message:
         `${values.length} spacing value(s) are not multiples of ${options.spacingBasePx}px: `
-        + `${values.slice(0, 10).join(', ')}. Snap spacing to the scale so rhythm is deliberate.`,
+        + `${values.slice(0, 10).join(', ')}. `
+        + (finer === undefined
+          ? 'Snap spacing to the scale so rhythm is deliberate.'
+          : `Every one is a multiple of ${finer}px, so this project may be on a ${finer}px scale — `
+            + `set spacingBasePx: ${finer} if so, otherwise snap them to ${options.spacingBasePx}px.`),
       elements: [...new Set([...offGrid.values()].flat())].slice(0, 5),
     })
   }

@@ -233,3 +233,44 @@ describe('unmeasurable backdrops', () => {
     expect(rule(result, 'spacing-grid')).toBeDefined()
   })
 })
+
+// Auditing dsh's own professionally-built Web UI produced two false-positive
+// classes: 1px and 2px values (borders and optical nudges, not rhythm), and
+// 28x28 desktop icon buttons measured against the 44px touch guideline when
+// WCAG 2.2 AA asks for 24.
+describe('calibration against a real application', () => {
+  it('ignores hairline values below the spacing base', () => {
+    const result = auditPage(page([element({ selector: 'div.rule', spacingPx: [1, 2, 3] })]), DEFAULT_OPTIONS)
+    expect(rule(result, 'spacing-grid')).toBeUndefined()
+  })
+
+  it('still flags off-grid values at or above the base', () => {
+    const result = auditPage(page([element({ spacingPx: [1, 6, 14] })]), DEFAULT_OPTIONS)
+    expect(rule(result, 'spacing-grid')?.message).toMatch(/6, 14/)
+    expect(rule(result, 'spacing-grid')?.message).not.toMatch(/\b1\b,/)
+  })
+
+  it('suggests the finer scale when every off-grid value fits one', () => {
+    const result = auditPage(page([element({ spacingPx: [6, 10, 14] })]), DEFAULT_OPTIONS)
+    expect(rule(result, 'spacing-grid')?.message).toMatch(/multiple of 2px, so this project may be on a 2px scale/)
+    expect(rule(result, 'spacing-grid')?.message).toMatch(/set spacingBasePx: 2/)
+  })
+
+  it('asks for the scale plainly when the values fit no finer one', () => {
+    const result = auditPage(page([element({ spacingPx: [7, 9] })]), DEFAULT_OPTIONS)
+    expect(rule(result, 'spacing-grid')?.message).toMatch(/Snap spacing to the scale/)
+  })
+
+  it('defaults to the WCAG AA target size, not the touch guideline', () => {
+    expect(DEFAULT_OPTIONS.minTapTargetPx).toBe(24)
+    const desktopIcon = page([element({ selector: 'button.icon', interactive: true, widthPx: 28, heightPx: 28 })])
+    expect(rule(auditPage(desktopIcon, DEFAULT_OPTIONS), 'tap-target')).toBeUndefined()
+    // A touch-first deployment raises it and gets the stricter answer back.
+    expect(rule(auditPage(desktopIcon, { ...DEFAULT_OPTIONS, minTapTargetPx: 44 }), 'tap-target')).toBeDefined()
+  })
+
+  it('still flags genuinely tiny controls at the AA threshold', () => {
+    const result = auditPage(page([element({ selector: 'a.tiny', interactive: true, widthPx: 16, heightPx: 16 })]), DEFAULT_OPTIONS)
+    expect(rule(result, 'tap-target')?.message).toMatch(/a\.tiny \(16x16\)/)
+  })
+})
