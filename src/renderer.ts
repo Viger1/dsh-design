@@ -5,7 +5,7 @@
  * @module dsh-design/renderer
  */
 
-import type { Browser } from 'playwright-core'
+import type { Browser, BrowserContext } from 'playwright-core'
 import { chromium } from 'playwright-core'
 
 /** Launch settings fixed per renderer by plugin config. */
@@ -18,6 +18,14 @@ export interface RendererOptions {
   viewportWidth: number
   /** Default viewport height in px. */
   viewportHeight: number
+}
+
+/** What one measurement produced. */
+export interface MeasureResult {
+  /** The URL that actually answered, after any redirects. */
+  finalUrl: string
+  /** Whatever the collector script returned. */
+  value: unknown
 }
 
 /** One measurement request. */
@@ -50,24 +58,30 @@ export class Renderer {
    * @param request - what to load and evaluate.
    * @returns whatever the script returned.
    */
-  async measure(request: MeasureRequest): Promise<unknown> {
+  async measure(request: MeasureRequest): Promise<MeasureResult> {
     if (this.disposed) throw new Error('renderer is disposed (plugin unloading)')
     if (request.signal.aborted) throw new Error('cancelled before the audit started')
-    const browser = await this.ensureBrowser()
-    if (this.disposed) throw new Error('renderer is disposed (plugin unloading)')
-    const context = await browser.newContext({
-      viewport: {
-        width: request.viewportWidth ?? this.options.viewportWidth,
-        height: this.options.viewportHeight,
-      },
-    })
-    const page = await context.newPage()
-    // Closing the context is what interrupts an in-flight navigation.
+    // Registered before the launch, not after: an abort fires once, so a
+    // listener attached later never runs and the browser would keep loading
+    // the page for the full navigation timeout. `context` is filled in below;
+    // the handler closes whatever exists when the abort arrives.
+    let context: BrowserContext | undefined
     const closeOnAbort = (): void => {
-      void context.close().catch(() => { /* already closing; the abort still wins */ })
+      void context?.close().catch(() => { /* already closing; the abort still wins */ })
     }
     request.signal.addEventListener('abort', closeOnAbort, { once: true })
     try {
+      const browser = await this.ensureBrowser()
+      this.throwIfCancelled(request.signal)
+      context = await browser.newContext({
+        viewport: {
+          width: request.viewportWidth ?? this.options.viewportWidth,
+          height: this.options.viewportHeight,
+        },
+      })
+      this.throwIfCancelled(request.signal)
+      const page = await context.newPage()
+      this.throwIfCancelled(request.signal)
       await page.goto(request.url, { timeout: request.timeoutMs, waitUntil: 'load' })
         .catch(async (err: unknown) => {
           if (request.signal.aborted) throw err instanceof Error ? err : new Error(String(err))
@@ -75,19 +89,34 @@ export class Renderer {
           // parsed and styles have applied.
           return page.goto(request.url, { timeout: request.timeoutMs, waitUntil: 'domcontentloaded' })
         })
+      this.throwIfCancelled(request.signal)
+      // goto follows redirects, so the host the policy admitted is not
+      // necessarily the host that answered. The caller re-checks this before
+      // reporting anything measured here.
+      const finalUrl = page.url()
       // Let webfonts and late layout settle so measurements are not taken
       // against a half-styled first paint.
       await page.waitForLoadState('networkidle', { timeout: request.timeoutMs }).catch(() => {
         // A page with a persistent connection never goes idle; the DOM is
         // already loaded, so measuring now is correct rather than failing.
       })
-      return await page.evaluate(request.script)
+      this.throwIfCancelled(request.signal)
+      return { finalUrl, value: await page.evaluate(request.script) }
     } catch (err) {
       throw request.signal.aborted ? new Error('cancelled while loading the page') : err
     } finally {
       request.signal.removeEventListener('abort', closeOnAbort)
-      await context.close().catch(() => { /* already closed by the abort path */ })
+      await context?.close().catch(() => { /* already closed by the abort path */ })
     }
+  }
+
+  /**
+   * Throw when the caller cancelled during one of the awaits above.
+   * @param signal - the tool execution's cancellation signal.
+   */
+  private throwIfCancelled(signal: AbortSignal): void {
+    if (this.disposed) throw new Error('renderer is disposed (plugin unloading)')
+    if (signal.aborted) throw new Error('cancelled while preparing the page')
   }
 
   /** Close the browser. Safe to call twice and safe to race a launch. */

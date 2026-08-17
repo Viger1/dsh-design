@@ -205,3 +205,31 @@ describe('report', () => {
     expect(text).toMatch(/## \[high\] contrast/)
   })
 })
+
+// The audit's own review caught these: a gradient or unparsed backdrop used to
+// be reported as white, which turned "white text on a dark hero" — the most
+// common landing-page pattern there is — into a contrast violation that does
+// not exist. A linter that cries wolf on the commonest layout gets switched off.
+describe('unmeasurable backdrops', () => {
+  it('skips contrast for an element whose backdrop could not be modelled', () => {
+    const result = auditPage(page([
+      element({ selector: 'h1.hero', color: 'rgb(255, 255, 255)', backgroundColor: 'dsh-design-unknown' }),
+    ]), DEFAULT_OPTIONS)
+    expect(rule(result, 'contrast')).toBeUndefined()
+    expect(result.summary.contrastFailures).toBe(0)
+  })
+
+  it('does not let an unmeasurable backdrop enter the palette count', () => {
+    const result = auditPage(page([
+      element({ backgroundColor: 'dsh-design-unknown', color: 'rgb(20,20,20)' }),
+    ]), DEFAULT_OPTIONS)
+    expect(result.summary.paletteColors).toEqual([])
+  })
+
+  it('still audits everything else on the same page', () => {
+    const result = auditPage(page([
+      element({ selector: 'h1.hero', color: 'rgb(255,255,255)', backgroundColor: 'dsh-design-unknown', spacingPx: [13] }),
+    ]), DEFAULT_OPTIONS)
+    expect(rule(result, 'spacing-grid')).toBeDefined()
+  })
+})

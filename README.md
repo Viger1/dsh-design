@@ -75,6 +75,12 @@ Every threshold is a deployment choice, because a dense operator console and a m
 - **Contrast resolves a real backdrop.** The collector walks ancestors to the first opaque background, because a ratio against `rgba(0,0,0,0)` is meaningless.
 - **Neutrals are excluded from the palette count.** A grey ramp is structure; saturated colors are choices, and only choices should be rationed.
 
+### What the plugin's own review changed
+
+`dsh-review` audited this source and found six defects, all fixed. The one that mattered: the backdrop walk used to treat a gradient as "nothing painted here" and fall through to white, so **white text on a dark gradient hero — the most common landing-page pattern there is — was reported as a contrast failure that did not exist**. A linter that cries wolf on the commonest layout gets switched off, so this was the difference between a useful tool and a liability. The backdrop now reports "unmeasurable" and those elements are skipped, holding to the same rule the foreground path already followed: measure it or say nothing.
+
+The others: unparsed color syntax in a background is now skipped rather than assumed white; local targets are canonicalized and confined to the workspace and to HTML files, because the renderer executes what it loads; cancellation is observed across the browser launch, not only after it; the host policy is re-checked after redirects; and ancestor `opacity: 0` no longer counts as visible.
+
 ## Known limitations
 
 - Measures one viewport per call; run it again at a mobile width rather than assuming.

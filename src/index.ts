@@ -8,8 +8,8 @@
  * @module dsh-design
  */
 
-import { readFile, stat } from 'node:fs/promises'
-import { basename, dirname, resolve } from 'node:path'
+import { readFile, realpath, stat } from 'node:fs/promises'
+import { extname, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -78,16 +78,30 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Resolve a model-supplied target to a loadable URL, enforcing the host policy
- * for remote URLs and turning local paths into file URLs.
- * @param target - http(s) URL, or a path to an HTML file.
+ * Whether the policy admits this host.
+ * @param hostname - the URL's hostname.
+ * @param allowedHosts - extra hostnames permitted beyond local hosts.
+ * @returns true when the audit may load it.
+ */
+export function hostAllowed(hostname: string, allowedHosts: readonly string[]): boolean {
+  return LOCAL_HOSTS.has(hostname) || allowedHosts.includes(hostname)
+}
+
+/**
+ * Resolve a model-supplied target to a loadable URL.
+ *
+ * A remote URL passes the host policy. A local path is canonicalized and must
+ * stay inside the workspace and be an HTML file: the renderer executes what it
+ * loads, so an unconstrained path would both run arbitrary local scripts and
+ * report whether a given file exists.
+ * @param target - http(s) URL, or a path to an HTML file in the workspace.
  * @param allowedHosts - extra hostnames permitted beyond local hosts.
  * @returns the URL to load.
  */
 export async function resolveTarget(target: string, allowedHosts: readonly string[]): Promise<string> {
   if (/^https?:\/\//i.test(target)) {
     const url = new URL(target)
-    if (!LOCAL_HOSTS.has(url.hostname) && !allowedHosts.includes(url.hostname)) {
+    if (!hostAllowed(url.hostname, allowedHosts)) {
       throw new Error(
         `host ${JSON.stringify(url.hostname)} is not allowed. Local hosts work out of the box; `
         + 'ask the user to add the hostname to the dsh-design `allowedHosts` config to audit a remote page.',
@@ -95,11 +109,23 @@ export async function resolveTarget(target: string, allowedHosts: readonly strin
     }
     return url.href
   }
-  const path = resolve(/^file:\/\//i.test(target) ? fileURLToPath(target) : target)
-  const info = await stat(path).catch(() => {
-    throw new Error(`target ${JSON.stringify(target)} is neither a URL nor an existing file`)
+  const workspace = await realpath(process.cwd())
+  const prefix = workspace.endsWith(sep) ? workspace : workspace + sep
+  const requested = /^file:\/\//i.test(target) ? fileURLToPath(target) : target
+  const real = await realpath(resolve(workspace, requested)).catch(() => {
+    throw new Error(`target ${JSON.stringify(target)} is neither a URL nor an existing file in the workspace`)
   })
-  if (info.isDirectory()) return pathToFileURL(resolve(path, 'index.html')).href
+  if (!real.startsWith(prefix)) {
+    throw new Error(`target ${JSON.stringify(target)} resolves outside the workspace`)
+  }
+  const info = await stat(real)
+  const path = info.isDirectory() ? resolve(real, 'index.html') : real
+  if (!['.html', '.htm'].includes(extname(path).toLowerCase())) {
+    throw new Error(`target ${JSON.stringify(target)} is not an HTML file; design_audit renders pages, not other file types`)
+  }
+  await stat(path).catch(() => {
+    throw new Error(`target ${JSON.stringify(target)} does not contain an index.html`)
+  })
   return pathToFileURL(path).href
 }
 
@@ -208,13 +234,25 @@ export function apply(ctx: Context, config: Config): void {
     },
     async execute(args, exec) {
       const url = await resolveTarget(args.target, config.allowedHosts)
-      const page = await renderer.measure({
+      const measured = await renderer.measure({
         url,
         script: COLLECT_SCRIPT,
         timeoutMs: config.navigationTimeoutMs,
         viewportWidth: args.viewportWidth,
         signal: exec.signal,
-      }) as PageSample
+      })
+      // goto follows redirects, so the admitted host is not necessarily the
+      // host that answered; re-check before reporting anything about it.
+      if (/^https?:$/.test(new URL(measured.finalUrl).protocol)) {
+        const finalHost = new URL(measured.finalUrl).hostname
+        if (!hostAllowed(finalHost, config.allowedHosts)) {
+          throw new Error(
+            `the page redirected to ${JSON.stringify(finalHost)}, which is not allowed. `
+            + 'Nothing about that page is reported. Ask the user to add the hostname to `allowedHosts` if it is legitimate.',
+          )
+        }
+      }
+      const page = measured.value as PageSample
       const result = auditPage(page, options)
       return {
         url: page.url,
@@ -272,5 +310,3 @@ const designSystemProvider: SkillProvider = {
   },
 }
 
-/** Re-exported for the audit's own documentation tooling. */
-export { basename, dirname }
