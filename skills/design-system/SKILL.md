@@ -55,6 +55,7 @@ Generated pages are consistently too tight and too centered. Give sections room 
 - One or two elevation levels. Shadows should be soft and low-contrast; a heavy drop shadow on every card is noise.
 - One border color from the neutral ramp; prefer a background change over a border where it reads.
 - Icons from one set at one weight. **Emoji are not an icon set** — they render differently on every platform and read as a placeholder.
+- **A hit area is not a font size.** A 14px link at 1.6 line-height is a 22px target, just under the floor, and nothing about it looks wrong. Give inline links and small icon buttons their own padding instead of enlarging the type — footer and nav links are where this is missed almost every time.
 
 ## 7. Do not skip the states
 
