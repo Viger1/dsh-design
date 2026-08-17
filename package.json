@@ -1,6 +1,6 @@
 {
   "name": "dsh-design",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Design taste your agent can be held to — a design-system skill that constrains the choices, plus design_audit, which measures the rendered page (type scale, WCAG contrast, spacing grid, palette drift) instead of trusting it looked right.",
   "type": "module",
   "main": "lib/index.js",
@@ -47,16 +47,19 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-skill": "^0.1.0-rc.5",
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.5",
-    "@deepseek-ai/schemastery": "^3.18.1",
     "playwright-core": "~1.62.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "*"
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-skill": "*",
+    "@deepseek-ai/dsh-tools": "*",
+    "@deepseek-ai/schemastery": "*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.0-rc.7",
+    "@deepseek-ai/dsh-skill": "^0.1.0-rc.5",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.5",
+    "@deepseek-ai/schemastery": "^3.18.1",
     "@types/node": "^26.2.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.10"
