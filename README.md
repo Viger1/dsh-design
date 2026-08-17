@@ -2,9 +2,11 @@
 
 English | [中文](README.zh.md)
 
-**Design taste your agent can be held to.**
+**The only thing in this ecosystem that measures design rules on a rendered page.**
 
-Every design plugin in this ecosystem is a prompt: a list of rules handed to the model, with nothing checking whether the model followed them. `dsh-design` ships the rules *and* the check — `design_audit` renders the page and measures what it actually did, so "it looks good" becomes a number you can argue with.
+Design tooling here splits into two buckets, and both leave the same hole. Generators produce a design and stop. Prompt-only skills hand the model a list of rules with nothing checking whether it followed them. Static analyzers parse CSS files, which cannot see what the browser actually painted: alpha composited over the real backdrop, utility classes after they resolve, a runtime theme switch, or the tap-target box as laid out.
+
+`dsh-design` renders the page and **measures** it. "It looks good" becomes a number you can argue with — including the specific tells of a generated-looking page, which no other plugin checks at all: violet gradients caught by **hue angle** rather than a string match, emoji standing in for iconography, and type that fell back to the browser default because no family was ever chosen.
 
 ## What it measures
 
@@ -21,6 +23,8 @@ Every design plugin in this ecosystem is a prompt: a list of rules handed to the
 | `emoji-icons` | Emoji standing in for iconography inside controls. |
 
 Findings name the element and the number. `p.muted at 1.62:1 (needs 4.5:1)` is actionable; "improve contrast" is not.
+
+Measuring the rendered page is what makes several of these possible at all. Contrast is computed after compositing the text color over the backdrop the collector actually resolved, so faded grey-on-white is caught and white-on-dark-gradient is correctly left alone — neither is visible to a CSS parser. Tap targets are read as laid-out boxes, not declared sizes.
 
 ## The other half: the skill
 
