@@ -1,0 +1,96 @@
+# dsh-design
+
+[English](README.md) | 中文
+
+**能被验收的设计品味。**
+
+这个生态里的设计插件几乎都是一份提示词：把规则发给模型，然后**没有任何东西检查它到底照做了没有**。`dsh-design` 两半都给——规则，以及验收：`design_audit` 渲染真实页面、量出它实际做了什么，让"看着还行"变成一个可以争论的数字。
+
+## 它测什么
+
+| 规则 | 报告内容 |
+| --- | --- |
+| `contrast` | 每一处未达 WCAG AA 的文本，附实测比值与所需比值。文字 alpha 会与真实背景合成，所以「白底浅灰半透明字」逃不掉。 |
+| `type-scale` | 页面实际渲染了几种字号、分别是多少。种类过多说明层次是随手堆的。 |
+| `spacing-grid` | 未落在间距刻度上的 padding/margin/gap，按数值和元素列出。 |
+| `palette` | 非中性色的种类数。灰阶不计入；九种强调色就是失控。 |
+| `tap-target` | 小于 44px 的交互元素，附实测尺寸。 |
+| `line-length` | 超出舒适行宽的正文，附最长行的实测字符数。 |
+| `default-font` | 大部分文本是否退化到浏览器默认字体栈——即从未做过排版选择。 |
+| `purple-gradient` | 紫→品红渐变，**按色相判定而非字符串匹配**：Tailwind 的 `violet-500` 色相是 258°，天真地设 260° 起就会漏掉最常见的那个。 |
+| `emoji-icons` | 控件里用 emoji 充当图标。 |
+
+每条发现都点名元素、给出数字。`p.muted at 1.62:1 (needs 4.5:1)` 是能直接改的；「注意对比度」不是。
+
+## 另一半：技能
+
+只做测量，只能发现「偏离了你本来定的系统」。内置的 `design-system` 技能负责让 agent**先把系统定下来**，而它围绕的是 AI 界面难看的真正病根——不是品味差，是**选择无限**：每个元素随手一个色值、想强调就新造一个字号、margin 全凭当下感觉。
+
+所以技能的顺序是先砍自由度：先承诺一个方向，在写组件之前锁死调色板与字号表，先定层次再谈装饰，间距一律走刻度，最后跑审计。结尾是一份具体的「机器味指纹」清单，并要求 agent 在宣称完成前先跑 `design_audit`。
+
+## 安装
+
+```sh
+dsh plugin --profile web add dsh-design
+```
+
+自动使用已装的 Chrome / Edge；都没有就执行一次 `npx playwright install chromium` 并设 `browserChannels: [chromium]`。需要 Node `^22.19 || >=24`。
+
+## 使用
+
+```
+design_audit { target: "http://localhost:3000/pricing" }
+design_audit { target: "dist/index.html", viewportWidth: 390 }
+```
+
+接受 URL（localhost 永远放行）或本地 HTML 文件。传 `viewportWidth` 可测指定断点——移动端正是点击区和行长最容易翻车的地方。
+
+## 配置
+
+```yaml
+- id: design
+  name: dsh-design
+  config:
+    headless: true
+    browserChannels: [chrome, msedge, chromium]
+    viewportWidth: 1280
+    viewportHeight: 900
+    navigationTimeoutMs: 15000
+    spacingBasePx: 4        # 间距必须是它的倍数
+    maxTypeSizes: 6         # 超过几种字号算层次失控
+    maxPaletteColors: 8     # 超过几种非中性色算配色漂移
+    neutralSaturation: 0.15 # 低于此饱和度视为中性色
+    minTapTargetPx: 44
+    maxCharsPerLine: 75
+    allowedHosts: []        # 允许审计的额外主机名
+    registerSkill: true
+```
+
+每个阈值都是部署选择——密集的运维控制台和营销落地页不该用同一套上限。
+
+## 设计要点
+
+- **浏览器只负责量，Node 负责判。** 页内采集脚本只收集计算样式；所有规则都是对这份快照的纯函数，所以阈值、WCAG 计算、套路检测都能脱离浏览器做单元测试。
+- **解析不了的颜色语法跳过，不猜。** 页面用了 `oklch()` 时，那些元素不计入对比度统计，而不是编一个比值出来。
+- **对比度要有真实背景。** 采集脚本会向上遍历祖先直到第一个不透明背景——对着 `rgba(0,0,0,0)` 算比值毫无意义。
+- **中性色不计入配色数。** 灰阶是结构，饱和色才是选择，需要节制的只有后者。
+
+## 已知限制
+
+- 一次只测一个视口宽度；要看移动端就再跑一次，别假设。
+- 只采样前 400 个可见元素，够看一个页面，不够看整个应用外壳。
+- 行长按平均字宽估算，是信号而非精确排版测量。
+- 它只判定可测量的东西。一个页面可以全部合规却依然别扭——配合 [dsh-preview](https://github.com/Viger1/dsh-preview) 让 agent 也能亲眼看看。
+
+## 同系插件
+
+| 插件 | 给 agent 的能力 |
+| --- | --- |
+| [dsh-preview](https://github.com/Viger1/dsh-preview) | 👁 眼睛——验证自己写的页面：打开、读取、截图、自检 |
+| [dsh-pilot](https://github.com/Viger1/dsh-pilot) | ✋ 手——按无障碍 ref 操作任意页面，带原生权限模型 |
+| [dsh-review](https://github.com/Viger1/dsh-review) | 🔍 判断力——找出缺陷，并在报告前逐条尝试推翻它 |
+| **dsh-design**（本仓库） | 🎨 品味——先约束选择，再实测结果有没有守住 |
+
+## 协议
+
+MIT © Viger1
