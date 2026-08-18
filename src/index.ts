@@ -48,8 +48,8 @@ export interface Config {
   maxTypeSizes: number
   /** More distinct non-neutral colors than this fails the palette rule. */
   maxPaletteColors: number
-  /** HSL saturation below which a color counts as neutral. */
-  neutralSaturation: number
+  /** Chroma below which a color counts as neutral and is not charged to the palette. */
+  neutralChroma: number
   /**
    * Interactive elements smaller than this in either axis are flagged. The
    * default is WCAG 2.2 AA (24px); raise it to 44 for a touch-first product.
@@ -73,7 +73,7 @@ export const Config: z<Config> = z.object({
   spacingBasePx: z.number().default(4),
   maxTypeSizes: z.number().default(6),
   maxPaletteColors: z.number().default(8),
-  neutralSaturation: z.number().default(0.15),
+  neutralChroma: z.number().default(0.18),
   minTapTargetPx: z.number().default(24),
   maxCharsPerLine: z.number().default(75),
   allowedHosts: z.array(z.string()).default([]),
@@ -144,8 +144,8 @@ export function apply(ctx: Context, config: Config): void {
       throw new Error(`dsh-design config ${field} must be a positive integer, got ${config[field]}`)
     }
   }
-  if (!(config.neutralSaturation >= 0 && config.neutralSaturation <= 1)) {
-    throw new Error(`dsh-design config neutralSaturation must be between 0 and 1, got ${config.neutralSaturation}`)
+  if (!(config.neutralChroma >= 0 && config.neutralChroma <= 1)) {
+    throw new Error(`dsh-design config neutralChroma must be between 0 and 1, got ${config.neutralChroma}`)
   }
 
   const renderer = new Renderer({
@@ -168,7 +168,7 @@ export function apply(ctx: Context, config: Config): void {
     spacingBasePx: config.spacingBasePx,
     maxTypeSizes: config.maxTypeSizes,
     maxPaletteColors: config.maxPaletteColors,
-    neutralSaturation: config.neutralSaturation,
+    neutralChroma: config.neutralChroma,
     minTapTargetPx: config.minTapTargetPx,
     maxCharsPerLine: config.maxCharsPerLine,
   }

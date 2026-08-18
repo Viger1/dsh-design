@@ -69,8 +69,8 @@ export interface AuditOptions {
   maxTypeSizes: number
   /** More distinct non-neutral colors than this means palette drift. */
   maxPaletteColors: number
-  /** HSL saturation below which a color counts as neutral. */
-  neutralSaturation: number
+  /** Chroma below which a color counts as neutral and is not charged to the palette. */
+  neutralChroma: number
   /**
    * Interactive elements smaller than this in either axis are flagged.
    * The default is WCAG 2.2 AA (2.5.8 Target Size Minimum, 24px); raise it to
@@ -86,7 +86,7 @@ export const DEFAULT_OPTIONS: AuditOptions = {
   spacingBasePx: 4,
   maxTypeSizes: 6,
   maxPaletteColors: 8,
-  neutralSaturation: 0.15,
+  neutralChroma: 0.18,
   minTapTargetPx: 24,
   maxCharsPerLine: 75,
 }
@@ -131,6 +131,12 @@ const DEFAULT_STACKS = new Set(['times', 'times new roman', 'serif', '-webkit-st
  */
 const CLICHE_HUE_MIN = 250
 const CLICHE_HUE_MAX = 305
+/**
+ * A gradient stop must carry at least this much chroma before its hue is worth
+ * reading. Hue is meaningless on a near-grey, so a pale lavender wash is not
+ * the cliche this rule is looking for; `violet-500` sits at 0.60.
+ */
+const CLICHE_MIN_CHROMA = 0.2
 /** Emoji and pictographs, used to catch emoji standing in for icons. */
 const EMOJI = /\p{Extended_Pictographic}/u
 
@@ -222,7 +228,7 @@ export function auditPage(page: PageSample, options: AuditOptions): AuditResult 
     for (const raw of [element.color, element.backgroundColor]) {
       const color = parseColor(raw)
       if (!color || color.a === 0) continue
-      if (isNeutral(color, options.neutralSaturation)) continue
+      if (isNeutral(color, options.neutralChroma)) continue
       const key = formatColor({ ...color, a: 1 })
       const seen = palette.get(key) ?? []
       if (seen.length < 3) seen.push(element.selector)
@@ -316,7 +322,7 @@ function antiPatterns(page: PageSample, visibleText: ElementSample[]): Violation
     const stops = element.backgroundImage.match(/rgba?\([^)]*\)|#[0-9a-f]{3,8}/gi) ?? []
     return stops.some((stop) => {
       const color = parseColor(stop)
-      if (color === undefined || isNeutral(color, 0.25)) return false
+      if (color === undefined || isNeutral(color, CLICHE_MIN_CHROMA)) return false
       const angle = hue(color)
       return angle >= CLICHE_HUE_MIN && angle <= CLICHE_HUE_MAX
     })

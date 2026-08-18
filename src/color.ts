@@ -109,21 +109,25 @@ export function requiredContrast(fontSizePx: number, fontWeight: number): number
 }
 
 /**
- * Whether a color reads as a neutral (grey, black, white) rather than part of
- * the palette. Neutrals are excluded from palette-size accounting because a
- * grey scale is structure, not a color choice.
+ * Whether a color reads as a neutral (grey, black, white, or a tinted ramp
+ * step) rather than part of the palette. Neutrals are excluded from
+ * palette-size accounting because a ramp is structure, not a color choice.
+ *
+ * Measured as absolute chroma — the distance from the grey axis — rather than
+ * HSL saturation, which is the wrong instrument here: its denominator collapses
+ * toward zero at the extremes of lightness, so a barely-tinted near-white or
+ * near-black scores as intensely saturated. `#FAF8F2` is paper by any reading,
+ * and HSL puts it at 0.44. Chroma is lightness-independent, so a warm or cool
+ * ramp stays neutral at every step while a real accent stays an accent.
  * @param color - the color to classify.
- * @param saturationThreshold - HSL saturation below which a color is neutral.
+ * @param chromaThreshold - chroma (0-1) below which a color is neutral.
  * @returns true for neutrals.
  */
-export function isNeutral(color: Rgba, saturationThreshold: number): boolean {
+export function isNeutral(color: Rgba, chromaThreshold: number): boolean {
   const max = Math.max(color.r, color.g, color.b)
   const min = Math.min(color.r, color.g, color.b)
   if (max === min) return true
-  const lightness = (max + min) / 2 / 255
-  const delta = (max - min) / 255
-  const saturation = lightness > 0.5 ? delta / (2 - (max + min) / 255) : delta / ((max + min) / 255)
-  return saturation < saturationThreshold
+  return (max - min) / 255 < chromaThreshold
 }
 
 /**

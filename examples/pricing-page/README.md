@@ -40,7 +40,12 @@ At 1280px, `design_audit` defaults:
 | `spacing-grid` | 10 off-grid values | none |
 | `tap-target` | 3 elements under 24px | none |
 | `purple-gradient` | 1 (logo mark) | none |
-| Non-neutral colors | 3 | 5 |
+| Non-neutral colors | 1 — `rgb(37, 99, 235)` | 1 — `rgb(15, 92, 68)` |
 | Elements sampled | 71 | 78 |
 
 A model is not deterministic, so a re-run will not reproduce these pages byte for byte. The numbers are one run of each, kept as an illustration rather than a benchmark — the reproducible part is the method, not the output.
+
+Two caveats worth knowing before you draw conclusions from this:
+
+- **The baseline was told to write the page and stop**, so it never had a revision pass of any kind. The arm this comparison lacks is an unguided run allowed to iterate.
+- **The skill has changed since these runs.** The guided run's first audit caught its own footer links at 22.4px, and the skill was afterwards updated to name that trap, so a clone of `main` will not reproduce that particular failure. The version the A/B was actually run against is npm `dsh-design@0.2.0`.

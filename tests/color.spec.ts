@@ -99,6 +99,42 @@ describe('isNeutral', () => {
   it('treats a barely tinted grey as neutral', () => {
     expect(isNeutral({ r: 130, g: 128, b: 126, a: 1 }, 0.15)).toBe(true)
   })
+
+  // The tests above only sample mid-lightness colors, which is why they all
+  // passed while the rule was measuring HSL saturation — whose denominator
+  // collapses at the extremes, so paper and ink scored as accents and a page's
+  // whole neutral ramp was charged to its palette budget.
+  it('treats a tinted near-white and near-black as neutral', () => {
+    expect(isNeutral({ r: 250, g: 248, b: 242, a: 1 }, 0.18)).toBe(true)
+    expect(isNeutral({ r: 23, g: 20, b: 15, a: 1 }, 0.18)).toBe(true)
+  })
+
+  it('treats an entire tinted neutral ramp as neutral', () => {
+    const slate = [
+      { r: 15, g: 23, b: 42 },
+      { r: 30, g: 41, b: 59 },
+      { r: 51, g: 65, b: 85 },
+      { r: 71, g: 85, b: 105 },
+      { r: 100, g: 116, b: 139 },
+      { r: 148, g: 163, b: 184 },
+      { r: 203, g: 213, b: 225 },
+      { r: 226, g: 232, b: 240 },
+    ]
+    for (const step of slate) {
+      expect(isNeutral({ ...step, a: 1 }, 0.18)).toBe(true)
+    }
+  })
+
+  it('still counts a dark accent as part of the palette', () => {
+    expect(isNeutral({ r: 15, g: 92, b: 68, a: 1 }, 0.18)).toBe(false)
+  })
+
+  it('does not let lightness change the verdict at equal chroma', () => {
+    // Same 40/255 chroma, one dark and one light. HSL rated the dark one three
+    // times more saturated than the light one; chroma rates them identically.
+    expect(isNeutral({ r: 20, g: 40, b: 60, a: 1 }, 0.18)).toBe(true)
+    expect(isNeutral({ r: 195, g: 215, b: 235, a: 1 }, 0.18)).toBe(true)
+  })
 })
 
 describe('hue', () => {

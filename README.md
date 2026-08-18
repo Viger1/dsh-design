@@ -23,14 +23,14 @@ One brief — a pricing page for a small API-monitoring product, Chinese UI, sin
 | Off-grid spacing values | 10 — `5 6 10 13 14 15 18 26 30 226` | 0 |
 | Tap targets under 24px | 3 | 0 |
 | Generated-design tells | 1 — a violet gradient on the logo mark | 0 |
-| Non-neutral colors | 3 | 5 |
+| Non-neutral colors | 1 — `rgb(37, 99, 235)` | 1 — `rgb(15, 92, 68)` |
 | Elements sampled | 71 | 78 |
 
 The baseline is not bad work. It is competent, and that is the point: it is the centered-blue-SaaS page you have already seen several hundred times, and it reached for a violet gradient **unprompted** — the exact tell the `purple-gradient` rule exists to catch. Underneath the competence it is improvising, with eleven type sizes and ten spacing values that belong to no scale.
 
-The guided run committed first — one warm neutral ramp, a single deep green used only for the primary action and the recommended tier, six sizes, spacing on 4px — then audited. Round one found one violation (footer links at 22.4px tall); round two came back clean across 78 elements. Note the palette went *up*, 3 colors to 5: the limits are ceilings, not targets, and a page with a point of view spends its budget on purpose.
+The guided run committed first — one warm neutral ramp, a single deep green used only for the primary action and the recommended tier, six sizes, spacing on 4px — then audited. Round one found one violation (footer links at 22.4px tall); round two came back clean across 78 elements. Both pages spend exactly one accent, which is the palette rule reporting that neither page's problem was color.
 
-Reproduce it yourself: the brief and both outputs are in [`examples/pricing-page/`](examples/pricing-page/). One run of each, so treat this as an illustration of the difference rather than a benchmark.
+Reproduce it yourself: the brief and both outputs are in [`examples/pricing-page/`](examples/pricing-page/). One run of each, so treat this as an illustration of the difference rather than a benchmark. The baseline was also told to write the page and stop, so it never got a revision pass — an unguided run allowed to iterate is the arm this comparison does not have.
 
 ## What it measures
 
@@ -87,7 +87,7 @@ Takes a URL (localhost always allowed) or a local HTML file. Pass `viewportWidth
     spacingBasePx: 4        # spacing must be a multiple of this
     maxTypeSizes: 6         # distinct font sizes before the hierarchy is unplanned
     maxPaletteColors: 8     # distinct non-neutral colors before it is drift
-    neutralSaturation: 0.15 # saturation below which a color counts as neutral
+    neutralChroma: 0.18       # chroma below which a color is neutral, not palette
     minTapTargetPx: 24     # WCAG 2.2 AA; raise to 44 for a touch-first product
     maxCharsPerLine: 75
     allowedHosts: []        # extra hostnames the audit may load
@@ -101,16 +101,17 @@ Every threshold is a deployment choice, because a dense operator console and a m
 - **The browser measures, Node decides.** The in-page collector only gathers computed styles; every rule is a pure function over that snapshot, which is why the thresholds, the WCAG math, and the cliche detection are unit-tested without a browser.
 - **Unmodelled color syntax is skipped, not guessed.** A page using `oklch()` loses those elements from the contrast count rather than getting a fabricated ratio.
 - **Contrast resolves a real backdrop.** The collector walks ancestors to the first opaque background, because a ratio against `rgba(0,0,0,0)` is meaningless.
-- **Neutrals are excluded from the palette count.** A grey ramp is structure; saturated colors are choices, and only choices should be rationed.
+- **Neutrals are excluded from the palette count, and "neutral" is measured as chroma.** A ramp is structure; accents are choices, and only choices should be rationed. Chroma rather than HSL saturation, because saturation's denominator collapses at the extremes of lightness — it scores `#FAF8F2` at 0.44, and paper is not an accent.
 
 ### Calibrated against a real application
 
-Auditing dsh's own Web UI — a professionally designed product — was the check that mattered, because every earlier fixture had been written to trigger the rules. Two thresholds passed cleanly on it (4 type sizes against a limit of 6, five non-neutral colors against eight), which is the evidence that those limits are not arbitrary. Two rules were wrong and were fixed:
+Auditing dsh's own Web UI — a professionally designed product — was the check that mattered, because every earlier fixture had been written to trigger the rules. Two thresholds passed cleanly on it (4 type sizes against a limit of 6, two non-neutral colors against eight), which is the evidence that those limits are not arbitrary. Three rules were wrong and were fixed:
 
 - **Hairlines are not rhythm.** 1px and 2px values are borders, focus rings, and optical nudges; holding them to the spacing scale was noise. Values below the base are now exempt, and when every off-grid value fits a finer scale the report says so and names it rather than asking a consistent project to abandon its own system.
 - **44px is the touch guideline, not the AA bar.** Flagging 28x28 desktop icon buttons applied a mobile standard to a mouse interface. The default is now WCAG 2.2 AA (2.5.8, 24px); touch-first deployments raise it.
+- **A neutral is a low-chroma color, not a low-saturation one.** The palette rule tested HSL saturation, whose denominator collapses toward zero at the extremes of lightness — so a barely-tinted near-white or near-black scored as intensely saturated. Every step of a tinted ramp was charged to the palette budget: a Tailwind `slate` ramp alone consumed all eight slots before a single accent, and this page's own off-white and near-black counted as accents. That is the rule contradicting the bundled skill, which tells the agent to build exactly such a ramp. Neutrality is now absolute chroma, which does not move with lightness.
 
-On that same UI the report went from three violations to two, and the one that remained — two muted labels at 3.55:1 — is a real accessibility finding.
+On that same UI the report went from three violations to two, and the one that remained — two muted labels at 3.55:1 — is a real accessibility finding. The palette count on it fell from five colors to two, both of them the product's blue.
 
 ### What the plugin's own review changed
 
